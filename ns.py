@@ -55,6 +55,13 @@ def identify_boundary(V):
 
     return d
 
+
+def local_matrices():
+    """
+    create some local matrices
+    """
+    pass
+
 if __name__ == '__main__':
 
     V, E = readmesh('ns.msh')
