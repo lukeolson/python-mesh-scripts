@@ -62,6 +62,12 @@ def local_matrices():
     """
     pass
 
+def assemble_fem()
+    """
+    assemble a LS FEM
+    """
+    pass
+
 if __name__ == '__main__':
 
     V, E = readmesh('ns.msh')
