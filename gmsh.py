@@ -1,10 +1,10 @@
+from __future__ import print_function
 # gmsh reader
 # neu writer
 #
 # * handles triangles (2d), tets(3d)
 import numpy
-import scipy
-from scipy.sparse import lil_matrix, csr_matrix, coo_matrix, triu, eye
+from scipy.sparse import coo_matrix, triu
 import sys
 
 
@@ -54,7 +54,7 @@ class Mesh:
         try:
             fid = open(mshfile, "r")
         except IOError:
-            print "File '%s' not found." % (filename)
+            print("File '%s' not found." % mshfile)
             sys.exit()
 
         line = 'start'
@@ -64,7 +64,7 @@ class Mesh:
             if line.find('$MeshFormat') == 0:
                 line = fid.readline()
                 if line.split()[0][0] is not '2':
-                    print "wrong gmsh version"
+                    print("wrong gmsh version")
                     sys.exit()
                 line = fid.readline()
                 if line.find('$EndMeshFormat') != 0:
@@ -93,7 +93,7 @@ class Mesh:
                     idx = int(data[0])-1  # fix gmsh 1-based indexing
                     if i != idx:
                         raise ValueError('problem with vertex ids')
-                    self.Verts[idx, :] = map(float, data[1:])
+                    self.Verts[idx, :] = list(map(float, data[1:]))
                 line = fid.readline()
                 if line.find('$EndNodes') != 0:
                     raise ValueError('expecting EndNodes')
@@ -108,7 +108,6 @@ class Mesh:
                     if i != idx:
                         raise ValueError('problem with elements ids')
                     etype = int(data[1])           # element type
-                    nnodes = self.elm_type[etype]   # lookup number of nodes
                     ntags = int(data[2])           # number of tags following
                     k = 3
                     if ntags > 0:                   # set physical id
@@ -118,7 +117,7 @@ class Mesh:
                             self.nprops += 1
                         k += ntags
 
-                    verts = map(int, data[k:])
+                    verts = list(map(int, data[k:]))
                     verts = numpy.array(verts)-1  # fixe gmsh 1-based index
 
                     if (etype not in self.Elmts) or\
@@ -184,8 +183,9 @@ class Mesh:
         if type(fname) is str:
             try:
                 fid = open(fname, 'w')
-            except IOError, (errno, strerror):
-                print ".neu error (%s): %s" % (errno, strerror)
+            except IOError as e:
+                (errno, strerror) = e.args
+                print(".neu error (%s): %s" % (errno, strerror))
         else:
             raise ValueError('fname is assumed to be a string')
 
@@ -193,12 +193,12 @@ class Mesh:
             mesh_id = 4  # mesh elements are tets
             bc_id = 2   # bdy face elements are tris
             dim = 3
-            print '... (neu file) assuming 3d, using tetrahedra'
+            print('... (neu file) assuming 3d, using tetrahedra')
         elif 2 not in self.Elmts:
             mesh_id = 2  # mesh elements are tris
             bc_id = 1   # bdy face elements are lines
             dim = 2
-            print '... (neu file) assuming 2d, using triangles'
+            print('... (neu file) assuming 2d, using triangles')
         else:
             raise ValueError('problem with finding elements for neu file')
 
@@ -236,20 +236,20 @@ class Mesh:
             if dim == 2:
                 fid.write('%d  %e  %e\n' %
                           (i+1, self.Verts[i, 0], self.Verts[i, 1]))
-                                        # ^^^ neu is 1-based indexing
+            # ^^^ neu is 1-based indexing
             else:
                 fid.write('%d  %e  %e  %e\n' %
                           (i+1, self.Verts[i, 0], self.Verts[i, 1],
                            self.Verts[i, 2]))
-                                        #     ^^^ neu is 1-based indexing
+            #     ^^^ neu is 1-based indexing
         fid.write('ENDOFSECTION\n')
 
         fid.write('ELEMENTS/CELLS 1.3.0\n')
         for i in range(0, nel):
             data = [i+1, neu_id[mesh_id], neu_pts[mesh_id]]
-                #   ^^^ neu is 1-based indexing
+            #   ^^^ neu is 1-based indexing
             data.extend((E[i, :]+1).tolist())
-                          #   ^^^ neu is 1-based indexing
+            #   ^^^ neu is 1-based indexing
             dstr = ''
             for d in data:
                 dstr += ' %d' % d
@@ -283,16 +283,16 @@ class Mesh:
 
     def _elm_types(self):
         elm_type = {}
-        elm_type[1] = 2    # 2-node line
-        elm_type[2] = 3    # 3-node triangle
-        elm_type[3] = 4    # 4-node quadrangle
-        elm_type[4] = 4    # 4-node tetrahedron
-        elm_type[5] = 8    # 8-node hexahedron
-        elm_type[6] = 6    # 6-node prism
-        elm_type[7] = 5    # 5-node pyramid
-        elm_type[8] = 3    # 3-node second order line
+        elm_type[1] = 2     # 2-node line
+        elm_type[2] = 3     # 3-node triangle
+        elm_type[3] = 4     # 4-node quadrangle
+        elm_type[4] = 4     # 4-node tetrahedron
+        elm_type[5] = 8     # 8-node hexahedron
+        elm_type[6] = 6     # 6-node prism
+        elm_type[7] = 5     # 5-node pyramid
+        elm_type[8] = 3     # 3-node second order line
                             # (2 nodes at vertices and 1 with edge)
-        elm_type[9] = 6    # 6-node second order triangle
+        elm_type[9] = 6     # 6-node second order triangle
                             # (3 nodes at vertices and 3 with edges)
         elm_type[10] = 9    # 9-node second order quadrangle
                             # (4 nodes at vertices,
@@ -370,8 +370,6 @@ class Mesh:
         V2V = V2V.T * V2V
 
         # compute interior edges list
-        V2VFullUpper = triu(V2V, 1).tocoo()
-        Nint = 0
         V2V.data = numpy.ones(V2V.data.shape)
         V2Vupper = triu(V2V, 1).tocoo()
 
@@ -393,7 +391,6 @@ class Mesh:
 
         # mark edges as boundary
         BE = self.Elmts[1][1]
-        Bid = self.Elmts[1][0]
         BE.sort(axis=1)
         BEdgeList = numpy.zeros((BE.shape[0],), dtype=int)
         i = 0
@@ -417,12 +414,11 @@ class Mesh:
         nsplit = len(numpy.where(marked_edges is True)[0])
         edge_num = marked_edges[ElementToEdge].sum(axis=1)
         edges3 = numpy.where(edge_num >= 2)[0]
-        #edges3 = marked_edges[id]             # all 2 or 3 edge elements
         marked_edges[ElementToEdge[edges3, :]] = True  # marked 3rd edge
-        #nsplit = len(numpy.where(marked_edges == True)[0]) - nsplit
+        nsplit = len(numpy.where(marked_edges is True)[0]) - nsplit
 
         edges1 = numpy.where(edge_num == 1)[0]
-        #edges1 = edge_num[id]             # all 2 or 3 edge elements
+        # edges1 = edge_num[id]             # all 2 or 3 edge elements
 
         # new nodes (only edges3 elements)
 
@@ -452,7 +448,6 @@ class Mesh:
         ids = numpy.ones((Nel,), dtype=bool)
         ids[edges3] = False
         ids[edges1] = False
-        id2 = numpy.where(ids is True)[0]
 
         E_new = numpy.delete(E, marked_elements, axis=0)  # E[id2, :]
         n0 = E[edges3, 0]
@@ -475,7 +470,7 @@ class Mesh:
         edge1 = self.Elmts[2][1][:, [1, 2, 0, 2, 0, 1]].ravel()
         nedges = edge0.shape[0]
         data = numpy.ones((nedges,), dtype=int)
-        #S = sparse(mesh.tri(:, [1, 1, 2, 2, 3, 3]),
+        # S = sparse(mesh.tri(:, [1, 1, 2, 2, 3, 3]),
         # mesh.tri(:, [2, 3, 1, 3, 1, 2]), 1, mesh.n, mesh.n);
         S = coo_matrix((data, (edge0, edge1)), shape=(self.Verts.shape[0],
                        self.Verts.shape[0])).tocsr().tocoo()
@@ -493,7 +488,7 @@ class Mesh:
         # find the boundary nodes for this mesh (does not support a one-element
         # whole)
         bid = numpy.where(S0.data == 1)[0]
-        bid = numpy.unique1d(S0.row[bid])
+        bid = numpy.unique(S0.row[bid])
         self.bid = bid
 
         for iter in range(0, maxit):
@@ -516,7 +511,7 @@ class Mesh:
 
 if __name__ == '__main__':
 
-    #meshname = 'test.msh'
+    # meshname = 'test.msh'
     meshname = 'bagel.msh'
     mesh = Mesh()
     mesh.read_msh(meshname)
@@ -524,13 +519,13 @@ if __name__ == '__main__':
     mesh.refine2dtri()
     mesh.refine2dtri()
     mesh.smooth2dtri()
-    print mesh.Elmts[2][1].shape
+    print(mesh.Elmts[2][1].shape)
 
     import trimesh
     trimesh.trimesh(mesh.Verts[:, :2], mesh.Elmts[2][1])
-    import pylab
-    pylab.plot(mesh.Verts[mesh.bid, 0], mesh.Verts[mesh.bid, 1], 'ro')
-    if 0:
+    import matplotlib.pyplot as plt
+    plt.plot(mesh.Verts[mesh.bid, 0], mesh.Verts[mesh.bid, 1], 'ro')
+    if 1:
         import trimesh
         trimesh.trimesh(mesh.Verts[:, :2], mesh.Elmts[2][1])
 
@@ -541,14 +536,11 @@ if __name__ == '__main__':
         mesh.refine2dtri()
         mesh.refine2dtri()
         trimesh.trimesh(mesh.Verts[:, :2], mesh.Elmts[2][1])
-        print mesh.Elmts[2][1].shape
+        print(mesh.Elmts[2][1].shape)
 
-    #mesh.refine2dtri(marked_elements=[0, 3, 5])
-
-    import pylab
-    import demo
-    #demo.trimesh(mesh.Verts[:, 0:2],mesh.Elmts[2][1])
-
-  # mesh.write_vtu()
-    #mesh.write_neu(bdy_ids=4)
-  #  mesh.write_neu()
+    # mesh.refine2dtri(marked_elements=[0, 3, 5])
+    # import demo
+    # demo.trimesh(mesh.Verts[:, 0:2],mesh.Elmts[2][1])
+    # mesh.write_vtu()
+    # mesh.write_neu(bdy_ids=4)
+    # mesh.write_neu()
