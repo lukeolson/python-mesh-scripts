@@ -50,7 +50,7 @@ def trimesh(vertices, indices, labels=False):
             text(bc[0], bc[1], str(n), {'color' : 'k', 'fontsize' : 8,
                                         'horizontalalignment' : 'center',
                                         'verticalalignment' : 'center'})
-    show()
+    return sub
     
     
 def regular_triangle_mesh(nx, ny):
