@@ -142,7 +142,7 @@ class Mesh:
     def _find_EF(self, vlist, E):
         for i in range(0, E.shape[0]):
             enodes = E[i, :]
-            if len(np.intersect1d_nu(vlist, enodes)) == len(vlist):
+            if len(np.intersect1d(vlist, enodes)) == len(vlist):
                 # found element.  now the face
                 missing_node = np.setdiff1d(enodes, vlist)
                 loc = np.where(enodes == missing_node)[0][0]
@@ -153,6 +153,7 @@ class Mesh:
                 if len(enodes) == 4:  # tet
                     face_map = {0: 2, 1: 3, 2: 1, 3: 0}
 
+                print('here')
                 return i, face_map[loc]
 
     def write_vtu(self, fname=None):
@@ -165,7 +166,7 @@ class Mesh:
         Cells = {}
         cdata = {}
         k = 0.0
-        for g_id, E in self.Elmts.iteritems():
+        for g_id, E in self.Elmts.items():
             k += 1.0
             if g_id not in vtk_id:
                 raise NotImplementedError("vtk ids not yet implemented")
@@ -192,18 +193,17 @@ class Mesh:
         else:
             raise ValueError("fname is assumed to be a string")
 
-        if 4 not in self.Elmts:
+        if 4 in self.Elmts:
             mesh_id = 4  # mesh elements are tets
             bc_id = 2  # bdy face elements are tris
             dim = 3
             print("... (neu file) assuming 3d, using tetrahedra")
-        elif 2 not in self.Elmts:
+
+        if 2 in self.Elmts:
             mesh_id = 2  # mesh elements are tris
             bc_id = 1  # bdy face elements are lines
             dim = 2
             print("... (neu file) assuming 2d, using triangles")
-        else:
-            raise ValueError("problem with finding elements for neu file")
 
         E = self.Elmts[mesh_id][1]
         nel = self.nElmts[mesh_id]
@@ -465,6 +465,7 @@ class Mesh:
         E_new = np.delete(E_new, Idx, axis=0)
 
         self.Elmts[2] = (self.Elmts[2][0][0] * np.ones((E_new.shape[0],)), E_new)
+        self.nElmts[2] = self.Elmts[2][0].shape[0]
 
     def smooth2dtri(self, maxit=10, tol=0.01):
         edge0 = self.Elmts[2][1][:, [0, 0, 1, 1, 2, 2]].ravel()
@@ -529,8 +530,8 @@ if __name__ == "__main__":
 
     if 0:
         # plot labels
-        xmid = mesh.Verts[mesh.Elmts[2][1],0].mean(axis=1)
-        ymid = mesh.Verts[mesh.Elmts[2][1],1].mean(axis=1)
+        xmid = mesh.Verts[mesh.Elmts[2][1], 0].mean(axis=1)
+        ymid = mesh.Verts[mesh.Elmts[2][1], 1].mean(axis=1)
         for i, x, y in zip(np.arange(len(xmid)), xmid, ymid):
             plt.text(x, y, i)
         for i, x, y in zip(np.arange(len(mesh.Verts[:, 0])), mesh.Verts[:, 0], mesh.Verts[:, 1]):
@@ -552,5 +553,3 @@ if __name__ == "__main__":
     plt.show()
 
     mesh.write_vtu()
-    mesh.write_neu(bdy_ids=4)
-    mesh.write_neu()
